@@ -1,0 +1,51 @@
+import java.util.ArrayList;
+import java.util.List;
+
+public class ConcurrentBank {
+    private final List<BankAccount> accounts = new ArrayList<>();
+    private int nextId = 1;
+
+    public synchronized BankAccount createAccount(int initialBalance) {
+        BankAccount account = new BankAccount(nextId++, initialBalance);
+        accounts.add(account);
+        return account;
+    }
+
+    public void transfer(BankAccount from, BankAccount to, int amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+        if (from == to) {
+            throw new IllegalArgumentException("Cannot transfer to same account");
+        }
+
+        BankAccount first;
+        BankAccount second;
+
+        if (from.getAccountId() < to.getAccountId()) {
+            first = from;
+            second = to;
+        } else {
+            first = to;
+            second = from;
+        }
+
+        synchronized (first) {
+            synchronized (second) {
+                if (from.getBalance() < amount) {
+                    throw new IllegalArgumentException("Insufficient funds");
+                }
+                from.withdraw(amount);
+                to.deposit(amount);
+            }
+        }
+    }
+
+    public synchronized int getTotalBalance() {
+        int total = 0;
+        for (BankAccount account : accounts) {
+            total += account.getBalance();
+        }
+        return total;
+    }
+}
