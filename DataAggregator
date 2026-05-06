@@ -1,0 +1,69 @@
+import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+
+public class DataAggregator {
+    private final Random random = new Random();
+
+    private double fetchPrice(String productName) {
+        simulateDelay();
+        simulateError();
+        return 899.99;
+    }
+
+    private String fetchDescription(String productName) {
+        simulateDelay();
+        simulateError();
+        return "Отличный ноутбук с современными характеристиками";
+    }
+
+    private double fetchRating(String productName) {
+        simulateDelay();
+        simulateError();
+        return 4.7;
+    }
+
+    private void simulateDelay() {
+        try {
+            int delay = 1000 + random.nextInt(2000);
+            Thread.sleep(delay);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private void simulateError() {
+        if (random.nextInt(100) < 20) {
+            throw new RuntimeException("Сервис временно недоступен");
+        }
+    }
+
+    public ProductInfo aggregateProductInfo(String productName) {
+        CompletableFuture<Double> priceFuture = CompletableFuture.supplyAsync(() -> fetchPrice(productName))
+                .exceptionally(ex -> {
+                    System.out.println("Ошибка получения цены: " + ex.getMessage());
+                    return 0.0;
+                });
+
+        CompletableFuture<String> descFuture = CompletableFuture.supplyAsync(() -> fetchDescription(productName))
+                .exceptionally(ex -> {
+                    System.out.println("Ошибка получения описания: " + ex.getMessage());
+                    return "Нет данных";
+                });
+
+        CompletableFuture<Double> ratingFuture = CompletableFuture.supplyAsync(() -> fetchRating(productName))
+                .exceptionally(ex -> {
+                    System.out.println("Ошибка получения рейтинга: " + ex.getMessage());
+                    return 0.0;
+                });
+
+        CompletableFuture<ProductInfo> resultFuture = CompletableFuture.allOf(priceFuture, descFuture, ratingFuture)
+                .thenApply(v -> new ProductInfo(
+                        productName,
+                        priceFuture.join(),
+                        descFuture.join(),
+                        ratingFuture.join()
+                ));
+
+        return resultFuture.join();
+    }
+}
